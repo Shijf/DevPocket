@@ -1,0 +1,113 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+
+const base = process.argv[2] || 'http://127.0.0.1:5173';
+if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base)) throw new Error('Browser regression only accepts a local development origin.');
+const browserCli = process.env.DEVPOCKET_BROWSER_CLI || 'browser-cli';
+const cli = (...args) => execFileSync(browserCli, args, { encoding: 'utf8', timeout: 45_000 });
+function contents(output) {
+  const match = output.match(/(?:snapshotPath|output|spillPath):\s*([^\n]+\.(?:md|json))/);
+  return match && existsSync(match[1]) ? readFileSync(match[1], 'utf8') : output;
+}
+const opened = cli('new_tab', '--url', base, '--wait-until', 'domcontentloaded');
+const tab = opened.match(/tabId:\s*(\S+)/)?.[1] || opened.match(/^tab (\S+)/m)?.[1];
+assert.ok(tab, opened);
+let snapshot = contents(cli('reload', '--tab-id', tab, '--timeout-ms', '15000'));
+const ref = (role, label) => {
+  const line = snapshot.split('\n').find(line => line.includes(`${role} "${label}"`) && line.includes('[ref='));
+  assert.ok(line, `Missing ${role} ${label}`);
+  return line.match(/\[ref=(\w+)\]/)[1];
+};
+function action(command, role, label, ...extra) { snapshot = contents(cli(command, '--tab-id', tab, '--ref', ref(role, label), ...extra)); return snapshot; }
+function check(text) {
+  if (!snapshot.includes(text)) { cli('wait_for', '--tab-id', tab, '--text', text, '--timeout-ms', '15000'); snapshot = contents(cli('snapshot', '--tab-id', tab)); }
+  assert.ok(snapshot.includes(text), `Expected snapshot to contain ${text}`);
+}
+check('请求头管理');
+if (snapshot.includes('丢弃草稿')) action('click', 'button', '丢弃草稿');
+action('click', 'button', '新建规则');
+action('type', 'textbox', '规则名称 *', '--text', 'UI 回归测试', '--fill');
+action('type', 'textbox', 'Header 1 名称', '--text', 'bad header', '--fill');
+action('click', 'button', '保存规则');
+check('Header 名称只能包含');
+action('type', 'textbox', 'Header 1 名称', '--text', 'x-regression', '--fill');
+action('type', 'textbox', 'Header 1 值', '--text', 'verified', '--fill');
+snapshot = contents(cli('reload', '--tab-id', tab));
+check('有一份未完成的规则草稿');
+action('click', 'button', '继续编辑');
+check('UI 回归测试'); check('x-regression'); check('verified');
+action('click', 'button', '保存规则');
+check('UI 回归测试'); check('规则已创建');
+assert.equal(snapshot.includes('dialog "新建规则"'), false);
+action('click', 'switch', 'UI 回归测试开关');
+check('规则已停用');
+action('type', 'textbox', '搜索规则', '--text', 'UI 回归测试', '--fill');
+assert.equal((snapshot.match(/- article /g) || []).length, 1);
+action('click', 'switch', '请求头修改总开关');
+check('请求头修改已暂停');
+action('click', 'switch', '请求头修改总开关');
+action('click', 'button', '编辑UI 回归测试');
+action('type', 'textbox', 'Header 1 值', '--text', 'updated', '--fill');
+action('click', 'button', '保存规则');
+check('updated');
+action('click', 'button', 'UI 回归测试更多操作');
+action('click', 'button', '删除规则');
+check('dialog "删除规则"');
+action('click', 'button', '删除规则');
+check('规则已删除'); check('没有找到匹配的规则');
+action('click', 'button', '清空搜索');
+action('click', 'button', '全部工具');
+check('你的开发工具箱'); check('JSON 工具'); check('JWT 解码'); check('接口 Mock'); check('站点存储');
+action('click', 'button', '打开工具');
+action('click', 'button', '使用指南');
+check('三步完成一次环境切换');
+action('click', 'button', '知道了');
+action('click', 'button', '工具箱设置');
+check('本地存储'); check('请求访问范围');
+action('click', 'button', '完成');
+const publicDir = cli('public_dir').trim();
+const indexPath = resolve(publicDir, 'INDEX.md');
+const index = existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : '| 域名 | path | 功能 | 文件 |\n|---|---|---|---|\n';
+copyFileSync(resolve('tests/browser/inspect-layout.js'), resolve(publicDir, 'devpocket-tools-inspect-layout.js'));
+const line = '| 127.0.0.1:5173 | / 与 /popup.html | 检查根节点、尺寸与溢出 | devpocket-tools-inspect-layout.js |';
+if (!index.includes('devpocket-tools-inspect-layout.js')) writeFileSync(indexPath, index.trimEnd() + '\n' + line + '\n');
+const layout = cli('evaluate', '--tab-id', tab, '--expression-file', resolve(publicDir, 'devpocket-tools-inspect-layout.js'));
+assert.match(layout, /rootMounted:\s*true|"rootMounted":\s*true/);
+assert.match(layout, /"overflow":\[\]/);
+console.log('Management layout:', layout.trim());
+mkdirSync('docs/screenshots', { recursive: true });
+function screenshot(name) {
+  const result = cli('screenshot', '--tab-id', tab);
+  const path = result.match(/path:\s*([^\n]+\.png)/)?.[1];
+  if (path) copyFileSync(path, resolve('docs/screenshots', name));
+}
+screenshot('management.png');
+snapshot = contents(cli('navigate', '--tab-id', tab, '--url', base + '/popup.html', '--wait-until', 'domcontentloaded'));
+check('请求头'); check('Header 1 Key'); check('Header 1 Value'); check('Header 1 详细设置'); check('导入配置'); check('导出配置');
+assert.equal(snapshot.includes('工具导航'), false);
+assert.equal(snapshot.includes('在独立页面中管理'), false);
+assert.equal(snapshot.includes('匹配 URL'), false);
+assert.equal(snapshot.includes('button "保存"'), false);
+action('click', 'button', 'Header 1 详细设置');
+check('dialog "Header 详细设置"');
+check('匹配 URL'); check('请求类型');
+action('click', 'button', '关闭');
+const popup = cli('evaluate', '--tab-id', tab, '--expression-file', resolve(publicDir, 'devpocket-tools-inspect-layout.js'));
+assert.match(popup, /shellWidth:\s*520|"shellWidth":\s*520/);
+assert.doesNotMatch(popup, /"shellHeight":580/);
+assert.match(popup, /"overflow":\[\]/);
+console.log('Popup layout:', popup.trim());
+screenshot('popup.png');
+snapshot = contents(cli('navigate', '--tab-id', tab, '--url', base, '--wait-until', 'domcontentloaded'));
+const consoleOutput = JSON.parse(contents(cli('console_messages', '--tab-id', tab, '--limit', '30', '--since-navigation')));
+const networkOutput = JSON.parse(contents(cli('network_requests', '--tab-id', tab, '--limit', '30', '--since-navigation')));
+assert.equal(consoleOutput.ok, true); assert.equal(networkOutput.ok, true);
+const consoleErrors = (consoleOutput.data.messages || []).filter(message => message.type === 'error');
+const badRequests = (networkOutput.data.requests || []).filter(request => request.status >= 400);
+assert.equal(consoleErrors.length, 0, JSON.stringify(consoleErrors));
+assert.equal(badRequests.length, 0, JSON.stringify(badRequests));
+console.log('Console errors:', consoleErrors.length, 'Failed resource requests:', badRequests.length);
+console.log('Browser smoke passed: create, validation, draft recovery, save, edit, switches, search, deletion, tool navigation, popup dimensions.');
+console.log('Tab:', tab);

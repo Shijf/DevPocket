@@ -1,0 +1,40 @@
+{
+  "name": "devpocket-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "tsx --test tests/*.test.ts",
+    "test:browser": "node tests/browser/smoke.mjs",
+    "check": "npm run test && npm run build && node scripts/check-build.mjs && node scripts/scan-release.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "verify:headers": "node scripts/echo-server.mjs",
+    "package": "npm run build && node scripts/scan-release.mjs && node scripts/package.mjs",
+    "serve:local": "node scripts/local-server.mjs",
+    "test:browser:proxy": "node tests/browser/proxy-smoke.mjs",
+    "test:browser:utilities": "node tests/browser/utilities-smoke.mjs",
+    "test:browser:extra": "node tests/browser/extra-tools-smoke.mjs",
+    "test:browser:productivity": "node tests/browser/productivity-smoke.mjs",
+    "test:browser:order": "node tests/browser/tool-order-smoke.mjs",
+    "test:browser:mock-isolation": "node tests/browser/mock-isolation-smoke.mjs",
+    "test:browser:editing": "node tests/browser/page-edit-smoke.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5"
+  }
+}

@@ -1,0 +1,16 @@
+:root {
+  --brand: #ff5000;
+  --brand-ink: #bd3c00;
+  --brand-soft: #fff3ed;
+  --surface: #ffffff;
+  --page: #f8f9fb;
+  --subtle: #fafafa;
+  --hover: #f4f4f5;
+  --text: #09090b;
+  --text-body: #3f3f46;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --divider: #f1f1f3;
+  --success: #15803d;
+  --danger: #dc2626;
+}

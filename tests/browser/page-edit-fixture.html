@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>DevPocket 文字编辑验证</title>
+<style>body { font: 16px system-ui; padding: 24px; user-select: none; } button { margin: 8px; } #edit-target { padding: 16px; border: 1px solid #ddd; }</style></head>
+<body contenteditable="false">
+<h1>页面文字编辑验证</h1>
+<button id="legacy">检查原编辑方式</button><button id="enable">开启文字编辑验证</button><button id="verify">检查输入并恢复</button>
+<p id="edit-target" role="textbox" aria-label="编辑验证文字" contenteditable="false">Editable demo</p>
+<pre id="result" contenteditable="false"></pre>
+<script type="module" src="./page-edit-fixture.ts"></script>
+</body></html>

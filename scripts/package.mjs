@@ -1,0 +1,12 @@
+import { mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+const { version } = JSON.parse(readFileSync('dist/manifest.json', 'utf8'));
+const output = `artifacts/devpocket-${version}.zip`;
+mkdirSync('artifacts', { recursive: true });
+execFileSync('ditto', ['-c', '-k', '--norsrc', '--noextattr', '--keepParent', 'dist', output]);
+const storeOutput = `artifacts/devpocket-${version}-store.zip`;
+execFileSync('ditto', ['-c', '-k', '--norsrc', '--noextattr', 'dist', storeOutput]);
+const entries = execFileSync('unzip', ['-Z1', storeOutput], { encoding: 'utf8' }).split('\n');
+if (!entries.includes('manifest.json')) throw new Error('Store package requires a root manifest.json');
+if (entries.some(entry => /(?:^|\/)(?:src|tests|node_modules|\.git|docs)\//.test(entry))) throw new Error('Unexpected development files in store package');
+console.log(`Created ${output} and ${storeOutput}`);

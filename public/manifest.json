@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "DevPocket · 开发工具箱",
+  "version": "0.1.0",
+  "description": "把前端调试装进口袋。17 款实用工具，一键修改请求头、代理资源、Mock 接口、对比 JSON、调试页面，让灵感到验证更近一步。",
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "storage",
+    "declarativeNetRequestWithHostAccess",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "optional_permissions": ["cookies", "scripting"],
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["mock-main.js"], "run_at": "document_start", "world": "MAIN", "all_frames": true },
+    { "matches": ["http://*/*", "https://*/*"], "js": ["mock-bridge.js"], "run_at": "document_start", "all_frames": true }
+  ],
+  "action": {
+    "default_title": "DevPocket",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_page": "index.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
